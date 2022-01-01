@@ -1,0 +1,24 @@
+{
+  "name": "emoti-match",
+  "version": "0.0.1",
+  "description": "A browser game where several players compete in matching emoticons",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daimonji-devel/emoti-match.git"
+  },
+  "keywords": [
+    "emoticon",
+    "matching",
+    "game"
+  ],
+  "author": "daimonji-devel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/daimonji-devel/emoti-match/issues"
+  },
+  "homepage": "https://github.com/daimonji-devel/emoti-match#readme"
+}
