@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/daimonji-devel/emoti-match/issues"
   },
-  "homepage": "https://github.com/daimonji-devel/emoti-match#readme"
+  "homepage": "https://github.com/daimonji-devel/emoti-match#readme",
+  "dependencies": {
+    "express": "^4.17.2"
+  }
 }
