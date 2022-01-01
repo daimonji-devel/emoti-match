@@ -3,7 +3,9 @@
   "version": "0.0.1",
   "description": "A browser game where several players compete in matching emoticons",
   "main": "index.js",
+  "type": "module",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
