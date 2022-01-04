@@ -1,3 +1,6 @@
+import { io } from './socket.io/socket.io.esm.min.js';
+
+
 async function renderIndex() {
   let name = data['name'];
   if (!name) {
@@ -84,6 +87,12 @@ async function renderRoomCreate() {
   return [ paragraph ];
 }
 
+async function renderCreatingRoom() {
+  let paragraph = document.createElement('p');
+  paragraph.innerText = 'creating a new room ...';
+  return [ paragraph ];
+}
+
 async function onUserInputSubmit(event) {
   event.preventDefault();
   let formData = new FormData(event.target);
@@ -106,15 +115,32 @@ function onRoomInput() {
 
 async function onRoomCreateSubmit(event) {
   event.preventDefault();
-  console.log('create room');
-  // await renderPage();
+  let contentPromise = renderCreatingRoom();
+  socket.emit('createRoom', data);
+  renderContent(await contentPromise);
+}
+
+async function onRoomCreated(room) {
+  console.log(`room ${room.id} created`);
+}
+
+async function onCreateRoomError(data) {
+  console.log(`createRoomError ${data.message}`);
+}
+
+async function renderContent(content) {
+  contentElement.replaceChildren(...content);
 }
 
 async function renderPage() {
   let content = await renderIndex();
-  contentElement.replaceChildren(...content);
+  renderContent(content);
 }
 
+
+var socket = io();
+socket.on('roomCreated', onRoomCreated);
+socket.on('createRoomError', onCreateRoomError);
 
 const contentElement = document.querySelector('div.content');
 let data = {};
