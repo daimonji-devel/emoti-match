@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/daimonji-devel/emoti-match#readme",
   "dependencies": {
-    "express": "^4.17.2"
+    "express": "^4.17.2",
+    "socket.io": "^4.4.0"
   }
 }
