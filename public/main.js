@@ -3,9 +3,11 @@ async function renderIndex() {
   if (!name) {
     return renderUserInput();
   }
+  let roomInputPromise = renderRoomInput();
+  let roomCreatePromise = renderRoomCreate();
   let paragraph = document.createElement('p');
   paragraph.innerText = `Hello ${name} ✌️😂`;
-  return [ paragraph ];
+  return [paragraph, ...(await roomInputPromise), ...(await roomCreatePromise)];
 }
 
 async function renderUserInput() {
@@ -15,13 +17,14 @@ async function renderUserInput() {
 
   let input = document.createElement('input');
   input.setAttribute('name', 'name');
+  input.setAttribute('required', null);
   input.setAttribute('minlength', 2);
   input.setAttribute('maxlength', 10);
   input.addEventListener('input', onUserInput);
 
   let button = document.createElement('button');
   button.setAttribute('type', 'submit');
-  button.innerText = 'send'
+  button.innerText = 'send';
 
   let form = document.createElement('form');
   form.addEventListener('submit', onUserInputSubmit);
@@ -32,6 +35,55 @@ async function renderUserInput() {
   return [ form ];
 }
 
+async function renderRoomInput() {
+  let text = document.createTextNode('Enter an existing game room');
+
+  let label = document.createElement('label');
+  label.setAttribute('for', 'roomId');
+  label.textContent = "ID";
+
+  let input = document.createElement('input');
+  input.setAttribute('name', 'roomId');
+  input.setAttribute('required', null);
+  input.setAttribute('minlength', 8);
+  input.setAttribute('maxlength', 8);
+  input.addEventListener('input', onRoomInput);
+
+  let button = document.createElement('button');
+  button.setAttribute('type', 'submit');
+  button.innerText = 'enter room';
+
+  let form = document.createElement('form');
+  form.addEventListener('submit', onRoomInputSubmit);
+  form.appendChild(label);
+  form.appendChild(input);
+  form.appendChild(button);
+
+  let paragraph = document.createElement('p');
+  paragraph.appendChild(text);
+  paragraph.appendChild(document.createElement('br'));
+  paragraph.appendChild(form);
+  return [ paragraph ];
+}
+
+async function renderRoomCreate() {
+  let text = document.createTextNode('Create a new game room');
+
+  let button = document.createElement('button');
+  button.setAttribute('type', 'submit');
+  button.innerText = 'create new room';
+
+  let form = document.createElement('form');
+  form.addEventListener('submit', onRoomCreateSubmit);
+  form.appendChild(button);
+
+  let paragraph = document.createElement('p');
+  paragraph.appendChild(text);
+  paragraph.appendChild(document.createElement('br'));
+  paragraph.appendChild(form);
+  return [ paragraph ];
+}
+
 async function onUserInputSubmit(event) {
   event.preventDefault();
   let formData = new FormData(event.target);
@@ -40,6 +92,22 @@ async function onUserInputSubmit(event) {
 }
 
 function onUserInput() {
+}
+
+async function onRoomInputSubmit(event) {
+  event.preventDefault();
+  let formData = new FormData(event.target);
+  console.log(`${formData.get('roomId')}`);
+  // await renderPage();
+}
+
+function onRoomInput() {
+}
+
+async function onRoomCreateSubmit(event) {
+  event.preventDefault();
+  console.log('create room');
+  // await renderPage();
 }
 
 async function renderPage() {
