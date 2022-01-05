@@ -3,8 +3,8 @@ import * as socketIo from 'socket.io';
 import http from 'http';
 import path from 'path';
 import url from 'url';
-import { RoomHandler } from './RoomHandler.js';
-import { Player } from './Player.js';
+import { RoomHandler } from './model/RoomHandler.js';
+import { Player } from './model/Player.js';
 
 
 const errorCategories = {
