@@ -33,11 +33,6 @@ async function processError(socket, category, type) {
   console.log(`${category} ${type} ${message}`);
 }
 
-async function onConnection(socket) {
-  socket.on('createRoom', (data) => onCreateRoom(socket, data));
-  socket.on('enterRoom', (data) => onEnterRoom(socket, data));
-}
-
 async function onCreateRoom(socket, data) {
   let userName = data['name'];
   if (!userName) {
@@ -89,6 +84,11 @@ async function onEnterRoom(socket, data) {
     }
     console.log(`player "${userName}" entered room ${room.id()}`);
   }
+}
+
+async function onConnection(socket) {
+  socket.on('createRoom', (data) => onCreateRoom(socket, data));
+  socket.on('enterRoom', (data) => onEnterRoom(socket, data));
 }
 
 const maxRooms = 5;
