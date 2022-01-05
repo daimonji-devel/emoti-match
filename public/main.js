@@ -1,5 +1,8 @@
 import { io } from './socket.io/socket.io.esm.min.js';
 
+/* ****************************************************************************
+ * rendering
+ */
 
 async function renderIndex() {
   let name = data['name'];
@@ -48,8 +51,8 @@ async function renderRoomInput() {
   let input = document.createElement('input');
   input.setAttribute('name', 'roomId');
   input.setAttribute('required', null);
-  input.setAttribute('minlength', 8);
-  input.setAttribute('maxlength', 8);
+  input.setAttribute('minlength', 6);
+  input.setAttribute('maxlength', 10);
   input.addEventListener('input', onRoomInput);
 
   let button = document.createElement('button');
@@ -87,11 +90,72 @@ async function renderRoomCreate() {
   return [ paragraph ];
 }
 
+async function renderRoom(data) {
+  let message = document.createElement('p');
+  message.setAttribute('class', 'message');
+
+  let paragraph = document.createElement('p');
+  paragraph.setAttribute('class', 'room');
+  let names = data['players'].map((player) => player.name).join(', ');
+  paragraph.innerText = `room ${data['id']} with players ${names}`;
+
+  let div = document.createElement('div');
+  div.appendChild(message);
+  div.appendChild(paragraph);
+  return [ div ];
+}
+
+async function updateRoom(data) {
+  let paragraph = contentElement.querySelector('p.room');
+  if (paragraph) {
+    let names = data['players'].map((player) => player.name).join(', ');
+    paragraph.innerText = `room ${data['id']} with players ${names}`;
+  }
+}
+
+async function renderEnteringRoom(roomId) {
+  let paragraph = document.createElement('p');
+  paragraph.innerText = `entering room ${roomId}...`;
+  return [ paragraph ];
+}
+
 async function renderCreatingRoom() {
   let paragraph = document.createElement('p');
   paragraph.innerText = 'creating a new room ...';
   return [ paragraph ];
 }
+
+async function deleteMessage(id) {
+  if (id == messageId) {
+    let messageElement = contentElement.querySelector('.message');
+    if (messageElement) {
+      messageElement.innerText = '';
+    }
+  }
+}
+
+async function renderMessage(message) {
+  let messageElement = contentElement.querySelector('.message');
+  if (messageElement) {
+    let id = Date.now();
+    messageId = id;
+    messageElement.innerText = message;
+    window.setTimeout(() => deleteMessage(id), messageDeleteTime);
+  }
+}
+
+async function renderContent(content) {
+  contentElement.replaceChildren(...content);
+}
+
+async function renderPage() {
+  let content = await renderIndex();
+  renderContent(content);
+}
+
+/* ****************************************************************************
+ * user events
+ */
 
 async function onUserInputSubmit(event) {
   event.preventDefault();
@@ -106,8 +170,10 @@ function onUserInput() {
 async function onRoomInputSubmit(event) {
   event.preventDefault();
   let formData = new FormData(event.target);
-  console.log(`${formData.get('roomId')}`);
-  // await renderPage();
+  let roomId = formData.get('roomId');
+  let contentPromise = renderEnteringRoom(roomId);
+  socket.emit('enterRoom', {name: data['name'], roomId: roomId});
+  renderContent(await contentPromise);
 }
 
 function onRoomInput() {
@@ -116,32 +182,52 @@ function onRoomInput() {
 async function onRoomCreateSubmit(event) {
   event.preventDefault();
   let contentPromise = renderCreatingRoom();
-  socket.emit('createRoom', data);
+  socket.emit('createRoom', {name: data['name']});
   renderContent(await contentPromise);
 }
 
-async function onRoomCreated(room) {
-  console.log(`room ${room.id} created`);
+/* ****************************************************************************
+ * events from server
+ */
+
+async function onRoomCreated(data) {
+  console.log(`room ${data.id} created`);
+  await renderContent(await renderRoom(data));
+  renderMessage('You have created a new room');
 }
 
 async function onCreateRoomError(data) {
   console.log(`createRoomError ${data.message}`);
 }
 
-async function renderContent(content) {
-  contentElement.replaceChildren(...content);
+async function onRoomEntered(data) {
+  console.log(`entered room ${data.id}`);
+  await renderContent(await renderRoom(data));
+  renderMessage('You have entered the room');
 }
 
-async function renderPage() {
-  let content = await renderIndex();
-  renderContent(content);
+async function onEnterRoomError(data) {
+  console.log(`enterRoomError ${data.message}`);
 }
 
+async function onNewPlayer(data) {
+  updateRoom(data);
+  renderMessage(`new player "${data['newPlayer']['name']}" has entered the room`);
+}
 
 var socket = io();
 socket.on('roomCreated', onRoomCreated);
 socket.on('createRoomError', onCreateRoomError);
+socket.on('roomEntered', onRoomEntered);
+socket.on('enterRoomError', onEnterRoomError);
+socket.on('newPlayer', onNewPlayer);
+
+/* ****************************************************************************
+ * initialization
+ */
 
 const contentElement = document.querySelector('div.content');
 let data = {};
+let messageId = null;
+let messageDeleteTime = 5000;
 renderPage();

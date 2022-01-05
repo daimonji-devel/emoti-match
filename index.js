@@ -1,9 +1,10 @@
 import express from 'express';
 import * as socketIo from 'socket.io';
-import { randomBytes } from 'crypto';
 import http from 'http';
 import path from 'path';
 import url from 'url';
+import { RoomHandler } from './RoomHandler.js';
+import { Player } from './Player.js';
 
 
 const errorCategories = {
@@ -15,6 +16,8 @@ const errorCategories = {
 const errorTypes = {
   'userNameError': 'User name is not accepted',
   'maxRoomsError': 'Maximum number of rooms reached. Please try again later',
+  'roomIdError': 'Incorrect room ID. Please try with a correct one',
+  'maxPlayersError': 'Maximum number of players reached. Please try in a different room',
   'unknownError': 'Reasons unknown'
 }
 
@@ -24,52 +27,73 @@ function errorMessage(category, type) {
   return `${categoryMessage}. ${typeMessage}.`;
 }
 
-async function createNewRoom() {
-  for (let i = 0; i < 10; i++) {
-    let id = randomBytes(4).toString('hex');
-    if (!rooms.has(id)) {
-      let room = {id: id, users: []};
-      rooms.set(room, id);
-      return room;
-    }
-  }
-  throw new Error('cannot create new room (probably the name space is too small)');
+async function processError(socket, category, type) {
+  let message = errorMessage(category, type);
+  socket.emit(category, {type: type, message: message});
+  console.log(`${category} ${type} ${message}`);
 }
 
 async function onConnection(socket) {
   socket.on('createRoom', (data) => onCreateRoom(socket, data));
-}
-
-async function createRoomError(socket, type) {
-  let category = 'createRoomError';
-  let message = errorMessage(category, type);
-  socket.emit(category, {message: message});
-  console.log(`${category} ${message}`);
+  socket.on('enterRoom', (data) => onEnterRoom(socket, data));
 }
 
 async function onCreateRoom(socket, data) {
   let userName = data['name'];
   if (!userName) {
-    createRoomError(socket, 'userNameError');
+    processError(socket, 'createRoomError', 'userNameError');
   }
-  else if (rooms.size >= maxRooms) {
-    createRoomError(socket, 'maxRoomsError');
+  else if (rooms.isFull()) {
+    processError(socket, 'createRoomError', 'maxRoomsError');
   }
   else {
     try {
-      let room = await createNewRoom();
-      console.log(`room ${room.id} created by "${userName}"`);
-      room['users'].push(userName);
-      socket.emit('roomCreated', room);
+      let room = await rooms.createNewRoom();
+      let player = new Player(socket, userName);
+      room.addPlayer(player);
+      console.log(`player "${userName}" created room ${room.id()}`);
+      socket.emit('roomCreated', room.publicInfo());
     }
     catch (error) {
-      createRoomError(socket);
+      processError(socket, 'createRoomError');
     }
   }
 }
 
+async function onEnterRoom(socket, data) {
+  let userName = data['name'];
+  if (!userName) {
+    processError(socket, 'enterRoomError', 'userNameError');
+    return
+  }
+  let roomId = data['roomId'];
+  let room = await rooms.getRoom(roomId);
+  if (!room) {
+    processError(socket, 'enterRoomError', 'roomIdError');
+  }
+  else if (room.isFull()) {
+    processError(socket, 'enterRoomError', 'maxPlayersError');
+  }
+  else {
+    let newPlayer = new Player(socket, userName);
+    room.addPlayer(newPlayer);
+    let roomInfo = room.publicInfo();
+    roomInfo['newPlayer'] = newPlayer.publicInfo();
+    for (let player of room.playerIterator()) {
+      if (player == newPlayer) {
+        socket.emit('roomEntered', roomInfo);
+      }
+      else {
+        player.socket().emit('newPlayer', roomInfo);
+      }
+    }
+    console.log(`player "${userName}" entered room ${room.id()}`);
+  }
+}
+
 const maxRooms = 5;
-var rooms = new Map();
+const maxPlayers = 5;
+const rooms = new RoomHandler(maxRooms, maxPlayers);
 
 const app = express();
 
