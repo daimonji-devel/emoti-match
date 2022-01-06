@@ -5,7 +5,7 @@ import { io } from './socket.io/socket.io.esm.min.js';
  */
 
 async function renderIndex() {
-  let name = data['name'];
+  let name = myData['name'];
   if (!name) {
     return renderUserInput();
   }
@@ -90,18 +90,45 @@ async function renderRoomCreate() {
   return [ paragraph ];
 }
 
-async function renderRoom(data) {
-  let message = document.createElement('p');
-  message.setAttribute('class', 'message');
+async function renderRoomLeave() {
+  let verb, action;
+  if (myData['amCreator']) {
+    verb = 'Destruct';
+    action = onRoomDestructSubmit;
+  }
+  else {
+    verb = 'Leave';
+    action = onRoomLeaveSubmit;
+  }
 
+  let text = document.createTextNode(`${verb} game room`);
+  let button = document.createElement('button');
+  button.setAttribute('type', 'submit');
+  button.innerText = verb;
+  let form = document.createElement('form');
+  form.addEventListener('submit', action);
+  form.appendChild(button);
+
+  let paragraph = document.createElement('p');
+  paragraph.appendChild(text);
+  paragraph.appendChild(document.createElement('br'));
+  paragraph.appendChild(form);
+  return [ paragraph ];
+}
+
+async function renderRoom(data) {
   let paragraph = document.createElement('p');
   paragraph.setAttribute('class', 'room');
   let names = data['players'].map((player) => player.name).join(', ');
   paragraph.innerText = `room ${data['id']} with players ${names}`;
 
+  let roomLeave = renderRoomLeave();
+
   let div = document.createElement('div');
-  div.appendChild(message);
   div.appendChild(paragraph);
+  for (let element of await roomLeave) {
+    div.appendChild(element);
+  }
   return [ div ];
 }
 
@@ -126,16 +153,12 @@ async function renderCreatingRoom() {
 }
 
 async function deleteMessage(id) {
-  if (id == messageId) {
-    let messageElement = contentElement.querySelector('.message');
-    if (messageElement) {
-      messageElement.innerText = '';
-    }
+  if (id == messageId && messageElement) {
+    messageElement.innerText = '';
   }
 }
 
 async function renderMessage(message) {
-  let messageElement = contentElement.querySelector('.message');
   if (messageElement) {
     let id = Date.now();
     messageId = id;
@@ -160,7 +183,7 @@ async function renderPage() {
 async function onUserInputSubmit(event) {
   event.preventDefault();
   let formData = new FormData(event.target);
-  data['name'] = formData.get('name');
+  myData['name'] = formData.get('name');
   await renderPage();
 }
 
@@ -172,7 +195,7 @@ async function onRoomInputSubmit(event) {
   let formData = new FormData(event.target);
   let roomId = formData.get('roomId');
   let contentPromise = renderEnteringRoom(roomId);
-  socket.emit('enterRoom', {name: data['name'], roomId: roomId});
+  socket.emit('enterRoom', {name: myData['name'], roomId: roomId});
   renderContent(await contentPromise);
 }
 
@@ -182,8 +205,18 @@ function onRoomInput() {
 async function onRoomCreateSubmit(event) {
   event.preventDefault();
   let contentPromise = renderCreatingRoom();
-  socket.emit('createRoom', {name: data['name']});
+  socket.emit('createRoom', {name: myData['name']});
   renderContent(await contentPromise);
+}
+
+async function onRoomDestructSubmit(event) {
+  event.preventDefault();
+  socket.emit('destructRoom', {name: myData['name'], roomId: myData['roomId']});
+}
+
+async function onRoomLeaveSubmit(event) {
+  event.preventDefault();
+  socket.emit('leaveRoom', {name: myData['name'], roomId: myData['roomId']});
 }
 
 /* ****************************************************************************
@@ -191,28 +224,63 @@ async function onRoomCreateSubmit(event) {
  */
 
 async function onRoomCreated(data) {
-  console.log(`room ${data.id} created`);
+  console.log(`room ${data['id']} created`);
+  myData['amCreator'] = true;
+  myData['roomId'] = data['id'];
   await renderContent(await renderRoom(data));
   renderMessage('You have created a new room');
 }
 
 async function onCreateRoomError(data) {
-  console.log(`createRoomError ${data.message}`);
+  await renderPage();
+  onUnspecificError(data);
 }
 
 async function onRoomEntered(data) {
-  console.log(`entered room ${data.id}`);
+  console.log(`entered room ${data['id']}`);
+  myData['roomId'] = data['id'];
   await renderContent(await renderRoom(data));
   renderMessage('You have entered the room');
 }
 
 async function onEnterRoomError(data) {
-  console.log(`enterRoomError ${data.message}`);
+  await renderPage();
+  onUnspecificError(data);
 }
 
 async function onNewPlayer(data) {
   updateRoom(data);
   renderMessage(`new player "${data['newPlayer']['name']}" has entered the room`);
+}
+
+async function onRoomDestructed(data) {
+  myData['amCreator'] = false;
+  delete myData['roomId'];
+  await renderPage();
+  renderMessage(`your room has finished`);
+}
+
+async function onDestructRoomError(data) {
+  onUnspecificError(data);
+}
+
+async function onLeftRoom(data) {
+  myData['amCreator'] = false;
+  await renderPage();
+  renderMessage(`you have left the room`);
+}
+
+async function onPlayerLeft(data) {
+  updateRoom(data);
+  renderMessage(`player "${data['formerPlayer']['name']}" has left the room`);
+}
+
+async function onLeaveRoomError(data) {
+  onUnspecificError(data);
+}
+
+async function onUnspecificError(data) {
+  console.log(`${data.type} ${data.message}`);
 }
 
 var socket = io();
@@ -221,13 +289,21 @@ socket.on('createRoomError', onCreateRoomError);
 socket.on('roomEntered', onRoomEntered);
 socket.on('enterRoomError', onEnterRoomError);
 socket.on('newPlayer', onNewPlayer);
+socket.on('roomDestructed', onRoomDestructed);
+socket.on('destructRoomError', onDestructRoomError);
+socket.on('leftRoom', onLeftRoom);
+socket.on('playerLeft', onPlayerLeft);
+socket.on('leaveRoomError', onLeaveRoomError);
+socket.on('unspecificError', onUnspecificError);
 
 /* ****************************************************************************
  * initialization
  */
 
 const contentElement = document.querySelector('div.content');
-let data = {};
+const messageElement = document.querySelector('div.message');
+
+let myData = {};
 let messageId = null;
 let messageDeleteTime = 5000;
 renderPage();

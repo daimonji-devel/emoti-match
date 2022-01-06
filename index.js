@@ -10,14 +10,18 @@ import { Player } from './model/Player.js';
 const errorCategories = {
   'createRoomError': 'Cannot create room',
   'enterRoomError': 'Cannot enter room',
+  'destructRoomError': 'Cannot destruct room',
+  'leaveRoomError': 'Cannot leave room',
   'unspecificError': 'Cannot proceed'
 }
 
 const errorTypes = {
-  'userNameError': 'User name is not accepted',
+  'playerNameError': 'Player name is not accepted',
   'maxRoomsError': 'Maximum number of rooms reached. Please try again later',
   'roomIdError': 'Incorrect room ID. Please try with a correct one',
   'maxPlayersError': 'Maximum number of players reached. Please try in a different room',
+  'permissionError': 'Player does not have permission for this operation',
+  'playerNotFoundError': 'Cannot find player in room',
   'unknownError': 'Reasons unknown'
 }
 
@@ -36,7 +40,7 @@ async function processError(socket, category, type) {
 async function onCreateRoom(socket, data) {
   let userName = data['name'];
   if (!userName) {
-    processError(socket, 'createRoomError', 'userNameError');
+    processError(socket, 'createRoomError', 'playerNameError');
   }
   else if (rooms.isFull()) {
     processError(socket, 'createRoomError', 'maxRoomsError');
@@ -46,7 +50,7 @@ async function onCreateRoom(socket, data) {
       let room = await rooms.createNewRoom();
       let player = new Player(socket, userName);
       room.addPlayer(player);
-      console.log(`player "${userName}" created room ${room.id()}`);
+      console.log(`${player} created room ${room.id()}`);
       socket.emit('roomCreated', room.publicInfo());
     }
     catch (error) {
@@ -58,7 +62,7 @@ async function onCreateRoom(socket, data) {
 async function onEnterRoom(socket, data) {
   let userName = data['name'];
   if (!userName) {
-    processError(socket, 'enterRoomError', 'userNameError');
+    processError(socket, 'enterRoomError', 'playerNameError');
     return
   }
   let roomId = data['roomId'];
@@ -82,13 +86,71 @@ async function onEnterRoom(socket, data) {
         player.socket().emit('newPlayer', roomInfo);
       }
     }
-    console.log(`player "${userName}" entered room ${room.id()}`);
+    console.log(`${newPlayer} entered room ${room.id()}`);
+  }
+}
+
+async function destructRoom(room) {
+  rooms.removeRoom(room.id());
+  let roomInfo = room.publicInfo();
+  for (let player of room.playerIterator()) {
+    player.socket().emit('roomDestructed', roomInfo);
+  }
+}
+
+async function onDestructRoom(socket, data) {
+  let roomId = data['roomId'];
+  let room = await rooms.getRoom(roomId);
+  if (!room) {
+    // send a positive confirmation if room does not exist (e.g. server has restarted)
+    socket.emit('roomDestructed', {id: roomId});
+    return;
+  }
+  let [ playerId, player ] = room.findSocketPlayer(socket);
+  if (playerId != 0) {
+    processError(socket, 'destructRoomError', 'permissionError');
+  }
+  else {
+    destructRoom(room);
+    console.log(`${player} destructed room ${room.id()}`);
+  }
+}
+
+async function onLeaveRoom(socket, data) {
+  let roomId = data['roomId'];
+  let room = await rooms.getRoom(roomId);
+  if (!room) {
+    // send a positive confirmation if room does not exist (e.g. server has restarted)
+    socket.emit('leftRoom', {id: roomId});
+    return;
+  }
+  let [ formerPlayerId, formerPlayer ] = room.findSocketPlayer(socket);
+  if (formerPlayerId < 0) {
+    // send a positive confirmation if player was not in the room (e.g. a former leave failed)
+    socket.emit('leftRoom', {id: roomId});
+  }
+  else if (formerPlayerId == 0) {
+    // if the owner leaves, room needs to be destructed.
+    destructRoom(room);
+    console.log(`${formerPlayer} destructed room ${room.id()}`);
+  }
+  else {
+    room.removePlayer(formerPlayer);
+    let roomInfo = room.publicInfo();
+    roomInfo['formerPlayer'] = formerPlayer.publicInfo();
+    socket.emit('leftRoom', roomInfo);
+    for (let player of room.playerIterator()) {
+      player.socket().emit('playerLeft', roomInfo);
+    }
+    console.log(`${formerPlayer} left room ${room.id()}`);
   }
 }
 
 async function onConnection(socket) {
   socket.on('createRoom', (data) => onCreateRoom(socket, data));
   socket.on('enterRoom', (data) => onEnterRoom(socket, data));
+  socket.on('destructRoom', (data) => onDestructRoom(socket, data));
+  socket.on('leaveRoom', (data) => onLeaveRoom(socket, data));
 }
 
 const maxRooms = 5;
