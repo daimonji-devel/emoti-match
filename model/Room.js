@@ -18,7 +18,23 @@ class Room {
   }
 
   /**
-   * add a player to the room.
+   * finds a player with a socket in a room.
+   * @param {'Socket'} socket player socket to look for.
+   * @returns Array<Number|Player> [player id, player] id is -1 if player was not found.
+   */
+  findSocketPlayer(socket) {
+    let playerId = 0;
+    for (let player of this.playerIterator()) {
+      if (player.socket() == socket) {
+        return [ playerId, player ];
+      }
+      playerId++;
+    }
+    return [ -1, null ];
+  }
+
+  /**
+   * add a player to the room. players with the same socket already in the room will be replaced.
    * @param {Player} player player to be added.
    * @returns whether player was added (or the room was full already).
    */
@@ -26,7 +42,15 @@ class Room {
     if (this.size() >= this.#maxSize) {
       return false;
     }
-    this.#players.push(player);
+    let playerId = this.findSocketPlayer(player.socket())[0];
+    if (playerId < 0) {
+      // new player is added at end
+      this.#players.push(player);
+    }
+    else {
+      // existing player is replaced
+      this.#players.splice(playerId, 1, player);
+    }
     return true;
   }
 
