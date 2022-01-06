@@ -23,6 +23,20 @@ class Player {
   }
 
   /**
+   * @returns {String} the name of the player.
+   */
+  name() {
+    return this.#name;
+  }
+
+  /**
+   * @returns {String} a string representing the player.
+   */
+  toString() {
+    return `Player "${this.#name}"`;
+  }
+
+  /**
    * @returns {Object} an object with the public information of the player.
    */
    publicInfo() {
