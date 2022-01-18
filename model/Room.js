@@ -5,6 +5,7 @@ class Room {
   #id;
   #maxSize;
   #players;
+  #game;
 
   /**
    * constructor.
@@ -15,6 +16,7 @@ class Room {
     this.#id = id;
     this.#maxSize = maxSize;
     this.#players = [];
+    this.#game = null;
   }
 
   /**
@@ -102,6 +104,45 @@ class Room {
   publicInfo() {
     let players = this.#players.map(player => player.publicInfo());
     return {id: this.#id, players: players};
+  }
+
+  /**
+   * sets a new game to the room. this is only possible if the previous game has finished.
+   * @param {Game} game game to set.
+   * @returns {Boolean} whether game is set (or the previous game is still ongoing).
+   */
+  setGame(game) {
+    if (this.isGameFinished()) {
+      this.#game = game;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * unsets the game. this is only possible if the game has finished already.
+   * this function is only for saving space as a finished game is treated the same as no game.
+   * @returns {Boolean} whether the game is unset.
+   */
+  unsetGame() {
+    return this.setGame(null);
+  }
+
+  /**
+   * @returns {Game} current game or null if there is no ongoing game.
+   */
+  game() {
+    if (this.isGameFinished()) {
+      return null;
+    }
+    return this.#game;
+  }
+
+  /**
+   * @returns {Boolean} whether there is no ongoing game.
+   */
+  isGameFinished() {
+    return !this.#game || this.#game.isFinished();
   }
 
 }

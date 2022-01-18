@@ -3,6 +3,7 @@ import * as socketIo from 'socket.io';
 import http from 'http';
 import path from 'path';
 import url from 'url';
+import { EmotiMatchServer } from './model/EmotiMatchServer.js';
 import { RoomHandler } from './model/RoomHandler.js';
 import { Player } from './model/Player.js';
 
@@ -12,6 +13,8 @@ const errorCategories = {
   'enterRoomError': 'Cannot enter room',
   'destructRoomError': 'Cannot destruct room',
   'leaveRoomError': 'Cannot leave room',
+  'startGameError': 'Cannot start game',
+  'checkSolutionError': 'Cannot check solution',
   'unspecificError': 'Cannot proceed'
 }
 
@@ -22,6 +25,8 @@ const errorTypes = {
   'maxPlayersError': 'Maximum number of players reached. Please try in a different room',
   'permissionError': 'Player does not have permission for this operation',
   'playerNotFoundError': 'Cannot find player in room',
+  'gameOngoingError': 'Cannot interrupt ongoing game',
+  'gameFinishedError': 'Game has already finished',
   'unknownError': 'Reasons unknown'
 }
 
@@ -146,15 +151,83 @@ async function onLeaveRoom(socket, data) {
   }
 }
 
+async function onStartGame(socket, data) {
+  let roomId = data['roomId'];
+  let room = await rooms.getRoom(roomId);
+  if (!room) {
+    processError(socket, 'startGameError', 'roomIdError');
+    return;
+  }
+  else if (!room.isGameFinished()) {
+    processError(socket, 'startGameError', 'gameOngoingError');
+    return;
+  }
+  let playerId = room.findSocketPlayer(socket)[0];
+  if (playerId != 0) {
+    processError(socket, 'startGameError', 'permissionError');
+  }
+  else {
+    let game = new EmotiMatchServer(room.size());
+    room.setGame(game);
+    game.start(
+      (gameInfos) => sendGameStatus(room, 'gameStarted', gameInfos),
+      (gameInfos) => sendGameStatus(room, 'roundPrepared', gameInfos),
+      (gameInfos) => sendGameStatus(room, 'roundStarted', gameInfos),
+      (gameInfos) => sendGameStatus(room, 'roundFinished', gameInfos),
+      (gameInfos) => sendGameStatus(room, 'gameFinished', gameInfos)
+    );
+  }
+}
+
+async function sendGameStatus(room, status, gameInfos) {
+  let roomInfo = room.publicInfo();
+  let pid = 0;
+  for (let player of room.playerIterator()) {
+    if (gameInfos) {
+      let gameInfo = gameInfos[pid];
+      player.socket().emit(status, roomInfo, gameInfo);
+    }
+    else {
+      player.socket().emit(status, roomInfo);
+    }
+    pid++;
+  }
+}
+
+async function onCheckSolution(socket, data) {
+  let roomId = data['roomId'];
+  let room = await rooms.getRoom(roomId);
+  if (!room) {
+    processError(socket, 'checkSolutionError', 'roomIdError');
+    return;
+  }
+  else if (room.isGameFinished()) {
+    processError(socket, 'checkSolutionError', 'gameFinishedError');
+    return;
+  }
+  let [ playerId, player ] = room.findSocketPlayer(socket);
+  if (playerId < 0) {
+    processError(socket, 'checkSolutionError', 'playerNotFoundError');
+  }
+  else {
+    let game = room.game();
+    game.messageFromPlayer(playerId, data, (answer) => {
+      socket.emit('solutionChecked', answer);
+    });
+  }
+}
+
 async function onConnection(socket) {
   socket.on('createRoom', (data) => onCreateRoom(socket, data));
   socket.on('enterRoom', (data) => onEnterRoom(socket, data));
   socket.on('destructRoom', (data) => onDestructRoom(socket, data));
   socket.on('leaveRoom', (data) => onLeaveRoom(socket, data));
+  socket.on('startGame', (data) => onStartGame(socket, data));
+  socket.on('checkSolution', (data) => onCheckSolution(socket, data));
 }
 
-const maxRooms = 5;
-const maxPlayers = 5;
+const maxRooms = 9;
+const maxPlayers = 9;
 const rooms = new RoomHandler(maxRooms, maxPlayers);
 
 const app = express();

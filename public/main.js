@@ -1,3 +1,4 @@
+import { EmotiMatchClient } from './EmotiMatchClient.js';
 import { io } from './socket.io/socket.io.esm.min.js';
 
 /* ****************************************************************************
@@ -8,6 +9,9 @@ async function renderIndex() {
   let name = myData['name'];
   if (!name) {
     return renderUserInput();
+  }
+  if (myData['roomInfo']) {
+    return renderRoom();
   }
   let roomInputPromise = renderRoomInput();
   let roomCreatePromise = renderRoomCreate();
@@ -116,27 +120,53 @@ async function renderRoomLeave() {
   return [ paragraph ];
 }
 
-async function renderRoom(data) {
+async function renderGameStart() {
+  let text = document.createTextNode('Everyone joined? Ready to start the game?');
+
+  let button = document.createElement('button');
+  button.setAttribute('type', 'submit');
+  button.innerText = 'Start game';
+
+  let form = document.createElement('form');
+  form.addEventListener('submit', onGameStartSubmit);
+  form.appendChild(button);
+
   let paragraph = document.createElement('p');
-  paragraph.setAttribute('class', 'room');
-  let names = data['players'].map((player) => player.name).join(', ');
-  paragraph.innerText = `room ${data['id']} with players ${names}`;
-
-  let roomLeave = renderRoomLeave();
-
-  let div = document.createElement('div');
-  div.appendChild(paragraph);
-  for (let element of await roomLeave) {
-    div.appendChild(element);
-  }
-  return [ div ];
+  paragraph.appendChild(text);
+  paragraph.appendChild(document.createElement('br'));
+  paragraph.appendChild(form);
+  return [ paragraph ];
 }
 
-async function updateRoom(data) {
-  let paragraph = contentElement.querySelector('p.room');
+async function renderRoomForms() {
+  let roomLeave = renderRoomLeave();
+  let gameStart = myData['amCreator'] ? renderGameStart() : [];
+  let roomForms = [...(await roomLeave), ...(await gameStart)];
+
+  let div = document.createElement('div');
+  div.setAttribute('class', 'roomForms');
+  for (let element of roomForms) {
+    div.appendChild(element);
+  }
+  return [ div ]
+}
+
+async function renderRoom() {
+  let paragraph = document.createElement('p');
+  paragraph.setAttribute('class', 'room');
+  await updateRoom(paragraph);
+  let roomForms = await renderRoomForms();
+  return [ paragraph, ...roomForms ];
+}
+
+async function updateRoom(paragraph) {
+  if (!paragraph) {
+    paragraph = contentElement.querySelector('p.room');
+  }
   if (paragraph) {
-    let names = data['players'].map((player) => player.name).join(', ');
-    paragraph.innerText = `room ${data['id']} with players ${names}`;
+    let roomInfo = myData['roomInfo'];
+    let names = roomInfo['players'].map((player) => player.name).join(', ');
+    paragraph.innerText = `room ${roomInfo['id']} with players ${names}`;
   }
 }
 
@@ -211,12 +241,17 @@ async function onRoomCreateSubmit(event) {
 
 async function onRoomDestructSubmit(event) {
   event.preventDefault();
-  socket.emit('destructRoom', {name: myData['name'], roomId: myData['roomId']});
+  socket.emit('destructRoom', {roomId: myData['roomInfo']['id']});
 }
 
 async function onRoomLeaveSubmit(event) {
   event.preventDefault();
-  socket.emit('leaveRoom', {name: myData['name'], roomId: myData['roomId']});
+  socket.emit('leaveRoom', {roomId: myData['roomInfo']['id']});
+}
+
+async function onGameStartSubmit(event) {
+  event.preventDefault();
+  socket.emit('startGame', {roomId: myData['roomInfo']['id']});
 }
 
 /* ****************************************************************************
@@ -226,8 +261,8 @@ async function onRoomLeaveSubmit(event) {
 async function onRoomCreated(data) {
   console.log(`room ${data['id']} created`);
   myData['amCreator'] = true;
-  myData['roomId'] = data['id'];
-  await renderContent(await renderRoom(data));
+  myData['roomInfo'] = data;
+  await renderContent(await renderRoom());
   renderMessage('You have created a new room');
 }
 
@@ -238,8 +273,8 @@ async function onCreateRoomError(data) {
 
 async function onRoomEntered(data) {
   console.log(`entered room ${data['id']}`);
-  myData['roomId'] = data['id'];
-  await renderContent(await renderRoom(data));
+  myData['roomInfo'] = data;
+  await renderContent(await renderRoom());
   renderMessage('You have entered the room');
 }
 
@@ -249,13 +284,15 @@ async function onEnterRoomError(data) {
 }
 
 async function onNewPlayer(data) {
-  updateRoom(data);
+  myData['roomInfo'] = data;
+  updateRoom();
   renderMessage(`new player "${data['newPlayer']['name']}" has entered the room`);
 }
 
 async function onRoomDestructed(data) {
+  console.log(`destructed room ${data['id']}`);
   myData['amCreator'] = false;
-  delete myData['roomId'];
+  delete myData['roomInfo'];
   await renderPage();
   renderMessage(`your room has finished`);
 }
@@ -265,13 +302,16 @@ async function onDestructRoomError(data) {
 }
 
 async function onLeftRoom(data) {
+  console.log(`left room ${data['id']}`);
   myData['amCreator'] = false;
+  delete myData['roomInfo'];
   await renderPage();
   renderMessage(`you have left the room`);
 }
 
 async function onPlayerLeft(data) {
-  updateRoom(data);
+  myData['roomInfo'] = data;
+  updateRoom();
   renderMessage(`player "${data['formerPlayer']['name']}" has left the room`);
 }
 
@@ -281,6 +321,27 @@ async function onLeaveRoomError(data) {
 
 async function onUnspecificError(data) {
   console.log(`${data.type} ${data.message}`);
+}
+
+async function sendSolution(solution) {
+  socket.emit('checkSolution', {roomId: myData['roomInfo']['id'], solution: solution});
+}
+
+async function onGameStarted(roomInfo, gameInfo) {
+  gameClient = new EmotiMatchClient(contentElement, renderMessage, sendSolution, onGameFinished);
+  gameClient.onGameStarted(roomInfo, gameInfo);
+}
+
+async function onStartGameError(data) {
+  onUnspecificError(data);
+}
+
+/**
+ * this function will be called from the game client when the game is finished for the client.
+ */
+async function onGameFinished() {
+  console.log('game finished');
+  renderPage();
 }
 
 var socket = io();
@@ -294,7 +355,29 @@ socket.on('destructRoomError', onDestructRoomError);
 socket.on('leftRoom', onLeftRoom);
 socket.on('playerLeft', onPlayerLeft);
 socket.on('leaveRoomError', onLeaveRoomError);
+socket.on('gameStarted', onGameStarted);
+socket.on('startGameError', onStartGameError);
+socket.on('gameFinished', onGameFinished);
 socket.on('unspecificError', onUnspecificError);
+
+socket.on('roundPrepared', (...args) => {
+  if (gameClient) gameClient.onRoundPrepared(...args);
+});
+socket.on('roundStarted', (...args) => {
+  if (gameClient) gameClient.onRoundStarted(...args);
+});
+socket.on('solutionChecked', (...args) => {
+  if (gameClient) gameClient.onSolutionChecked(...args);
+});
+socket.on('checkSolutionError', (...args) => {
+  if (gameClient) gameClient.onCheckSolutionError(...args);
+});
+socket.on('roundFinished', (...args) => {
+  if (gameClient) gameClient.onRoundFinished(...args);
+});
+socket.on('gameFinished', (...args) => {
+  if (gameClient) gameClient.onGameFinished(...args);
+});
 
 /* ****************************************************************************
  * initialization
@@ -303,7 +386,8 @@ socket.on('unspecificError', onUnspecificError);
 const contentElement = document.querySelector('div.content');
 const messageElement = document.querySelector('div.message');
 
-let myData = {};
-let messageId = null;
-let messageDeleteTime = 5000;
+var myData = {};
+var messageId = null;
+var messageDeleteTime = 5000;
+var gameClient;
 renderPage();
