@@ -331,9 +331,11 @@ class EmotiMatchClient {
 
   async onRoundFinished(roomInfo, gameInfo) {
     let players = roomInfo['players'];
+    let scores = gameInfo['scores'];
     for (let pid = 0; pid < players.length; pid++) {
       let cardInfo = this.#cardInfos[pid];
       this.#deleteCardSymbols(cardInfo);
+      cardInfo.scoreElement.nodeValue = scores[pid];
     }
     this.#renderMessage(`round finished`);
   }
