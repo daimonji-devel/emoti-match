@@ -1,8 +1,10 @@
 import express from 'express';
 import * as socketIo from 'socket.io';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import url from 'url';
+
 import { EmotiMatchServer } from './model/EmotiMatchServer.js';
 import { RoomHandler } from './model/RoomHandler.js';
 import { Player } from './model/Player.js';
@@ -226,19 +228,101 @@ async function onConnection(socket) {
   socket.on('checkSolution', (data) => onCheckSolution(socket, data));
 }
 
-const maxRooms = 9;
-const maxPlayers = 9;
+/* ****************************************************************************
+ * configuration
+ */
+
+/**
+ * determines configuration in three fallback steps.
+ * 1. configuration file specified in command line argument (if specified)
+ * 2. default configuration file (if it exists)
+ * 3. a default configuration
+ * @returns {Object} configuration determined.
+ */
+function configuration() {
+  let content;
+  if (process.argv.length > 2) {
+    // if configured in command line, use configuration from there. do not catch errors.
+    let configPath = process.argv[process.argv.length - 1];
+    console.log(`load config from file ${configPath}`);
+    content = fs.readFileSync(configPath);
+  }
+  else {
+    // use default file but catch error of file cannot be loaded.
+    let configPath = path.join(moduleDir, 'config.json');
+    console.log(`load configuration from default configuration file ${configPath}`);
+    try {
+      content = fs.readFileSync(configPath);
+    }
+    catch (error) {
+      console.log('default configuration file does not exist. use default configuration.');
+      return {};
+    }
+  }
+  return JSON.parse(content);
+}
+
+/**
+ * retrieves a value from a hierarchical configuration object.
+ * @param {Object} config: configuration object.
+ * @param {Array} key: key array where each element represents one hierarchy level.
+ * @returns {Object|undefined} value referenced by key or undefined if value does not exit.
+ */
+function configurationValue(config, key) {
+  for (let keyElement of key) {
+    if (!(keyElement in config)) {
+      return undefined;
+    }
+    config = config[keyElement]
+  }
+  return config;
+}
+
+function configurationEntries(config) {
+  let todo = [ [ [], config ] ];
+  let entries = [];
+  while (todo.length) {
+    let [ key, value ] = todo.splice(0, 1)[0];
+    if (value && (typeof value === 'object')) {
+      let subTodo = Object.entries(value).map(
+        ([ subKeyElement, subValue ]) => [[...key, subKeyElement], subValue]
+      );
+      todo.splice(0, 0, ...subTodo);
+    }
+    else {
+      entries.push([ key, value ]);
+    }
+  }
+  return entries;
+}
+
+/* ****************************************************************************
+ * start-up
+ */
+
+const modulePath = url.fileURLToPath(import.meta.url);
+const moduleDir = path.dirname(modulePath);
+const publicPath = path.join(moduleDir, 'public');
+
+var config = configuration();
+console.log('configuration');
+for (let [ key, value ] of configurationEntries(config)) {
+  console.log(` ${key.join('.')}: ${value}`);
+}
+
+const maxRooms = configurationValue(config, ['room', 'maxRooms']) || 9;
+const maxPlayers = configurationValue(config, ['room', 'maxPlayers']) || 9;
+const port = configurationValue(config, ['url', 'port']) || 3000;
+const host = configurationValue(config, ['url', 'host']) || 'localhost';
+
 const rooms = new RoomHandler(maxRooms, maxPlayers);
 
 const app = express();
-
-const modulePath = url.fileURLToPath(import.meta.url);
-const publicPath = path.join(path.dirname(modulePath), 'public');
 app.use(express.static(publicPath));
 
-const port = process.env.PORT || 3000;
 const httpServer = http.createServer(app);
 const socketIoServer = new socketIo.Server(httpServer);
 
 socketIoServer.on('connection', onConnection);
-httpServer.listen(port, () => console.log('emoti-match listens on port ' + port));
+
+httpServer.listen(port, host, () => console.log(`emoti-match listens to ${host}:${port}`));

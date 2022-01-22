@@ -1,0 +1,4 @@
+{
+  "url": {"port": 3000, "host": "localhost", "inactive_path_prefix": "/better/emoti-match"},
+  "room": {"maxRooms": 9, "maxPlayers": 9}
+}
