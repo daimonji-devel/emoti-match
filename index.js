@@ -349,7 +349,6 @@ logger.info('emoti-match start ------------------------------------------');
 for (let [ key, value ] of configurationEntries(config)) {
   logger.info(`config ${key.join('.')}: ${value}`);
 }
-logger.error('test error');
 
 const maxRooms = configurationValue(config, ['room', 'maxRooms']) || 9;
 const maxPlayers = configurationValue(config, ['room', 'maxPlayers']) || 9;
