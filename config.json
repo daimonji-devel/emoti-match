@@ -1,4 +1,5 @@
 {
   "url": {"port": 3000, "host": "localhost", "inactive_path_prefix": "/better/emoti-match"},
+  "log": {"level": "debug", "consoleLevel": "info", "logDir": "../log"},
   "room": {"maxRooms": 9, "maxPlayers": 9}
 }
