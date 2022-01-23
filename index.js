@@ -341,6 +341,7 @@ function configurationEntries(config) {
 const modulePath = url.fileURLToPath(import.meta.url);
 const moduleDir = path.dirname(modulePath);
 const publicPath = path.join(moduleDir, 'public');
+const indexFile = path.join(publicPath, 'index.html');
 
 const config = configuration();
 const logger = createLogger(configurationValue(config, ['log']) || {});
@@ -362,6 +363,7 @@ app.use(morgan(':remote-addr :method :url :status :response-time ms', {
   stream: { write: message => logger.http(message.trim()) }
 }));
 app.use(express.static(publicPath));
+app.use('/room/[0-9a-f]+', (req, res, next) => res.sendFile(indexFile));
 
 const httpServer = http.createServer(app);
 const socketIoServer = new socketIo.Server(httpServer);
