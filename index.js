@@ -42,7 +42,7 @@ function errorMessage(category, type) {
 async function processError(socket, category, type) {
   let message = errorMessage(category, type);
   socket.emit(category, {type: type, message: message});
-  console.log(`${category} ${type} ${message}`);
+  logger.error(`${category} ${type} ${message}`);
 }
 
 async function onCreateRoom(socket, data) {
@@ -58,7 +58,7 @@ async function onCreateRoom(socket, data) {
       let room = await rooms.createNewRoom();
       let player = new Player(socket, userName);
       room.addPlayer(player);
-      console.log(`${player} created room ${room.id()}`);
+      logger.verbose(`${player} created room ${room.id()}`);
       socket.emit('roomCreated', room.publicInfo());
     }
     catch (error) {
@@ -94,7 +94,7 @@ async function onEnterRoom(socket, data) {
         player.socket().emit('newPlayer', roomInfo);
       }
     }
-    console.log(`${newPlayer} entered room ${room.id()}`);
+    logger.verbose(`${newPlayer} entered room ${room.id()}`);
   }
 }
 
@@ -120,7 +120,7 @@ async function onDestructRoom(socket, data) {
   }
   else {
     destructRoom(room);
-    console.log(`${player} destructed room ${room.id()}`);
+    logger.verbose(`${player} destructed room ${room.id()}`);
   }
 }
 
@@ -140,7 +140,7 @@ async function onLeaveRoom(socket, data) {
   else if (formerPlayerId == 0) {
     // if the owner leaves, room needs to be destructed.
     destructRoom(room);
-    console.log(`${formerPlayer} destructed room ${room.id()}`);
+    logger.verbose(`${formerPlayer} destructed room ${room.id()}`);
   }
   else {
     room.removePlayer(formerPlayer);
@@ -150,7 +150,7 @@ async function onLeaveRoom(socket, data) {
     for (let player of room.playerIterator()) {
       player.socket().emit('playerLeft', roomInfo);
     }
-    console.log(`${formerPlayer} left room ${room.id()}`);
+    logger.verbose(`${formerPlayer} left room ${room.id()}`);
   }
 }
 
@@ -346,8 +346,9 @@ const logger = createLogger(configurationValue(config, ['log']) || {});
 
 logger.info('emoti-match start ------------------------------------------');
 for (let [ key, value ] of configurationEntries(config)) {
-  console.log(` ${key.join('.')}: ${value}`);
+  logger.info(`config ${key.join('.')}: ${value}`);
 }
+logger.error('test error');
 
 const maxRooms = configurationValue(config, ['room', 'maxRooms']) || 9;
 const maxPlayers = configurationValue(config, ['room', 'maxPlayers']) || 9;
@@ -364,4 +365,4 @@ const socketIoServer = new socketIo.Server(httpServer);
 
 socketIoServer.on('connection', onConnection);
 
-httpServer.listen(port, host, () => console.log(`emoti-match listens to ${host}:${port}`));
+httpServer.listen(port, host, () => logger.info(`listening to ${host}:${port}`));
