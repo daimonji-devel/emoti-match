@@ -4,6 +4,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import url from 'url';
+import winston from 'winston';
 
 import { EmotiMatchServer } from './model/EmotiMatchServer.js';
 import { RoomHandler } from './model/RoomHandler.js';
@@ -229,6 +230,42 @@ async function onConnection(socket) {
 }
 
 /* ****************************************************************************
+ * logging
+ */
+
+function formatLog({ level, message, timestamp }) {
+  return `${timestamp} ${level}: ${message}`;
+}
+
+function createLogger(logConfig) {
+  let logDir = logConfig['logDir'] || './log';
+  let level = logConfig['level'] || 'debug';
+  let consoleLevel = logConfig['consoleLevel'] || level;
+  let fileName = path.join(logDir, 'emoti-match.log');
+
+  let logger = winston.createLogger({
+    format: winston.format.timestamp(),
+    transports: [
+      new winston.transports.File({
+        level: level,
+        filename: fileName,
+        maxsize: 1048576,
+        maxFiles: 5,
+        format: winston.format.printf(formatLog),
+      }),
+      new winston.transports.Console({
+        level: consoleLevel,
+        format: winston.format.combine(
+          winston.format.colorize(),
+          winston.format.printf(formatLog),
+        ),
+      }),
+    ],
+  });
+  return logger;
+}
+
+/* ****************************************************************************
  * configuration
  */
 
@@ -304,8 +341,10 @@ const modulePath = url.fileURLToPath(import.meta.url);
 const moduleDir = path.dirname(modulePath);
 const publicPath = path.join(moduleDir, 'public');
 
-var config = configuration();
-console.log('configuration');
+const config = configuration();
+const logger = createLogger(configurationValue(config, ['log']) || {});
+
+logger.info('emoti-match start ------------------------------------------');
 for (let [ key, value ] of configurationEntries(config)) {
   console.log(` ${key.join('.')}: ${value}`);
 }
