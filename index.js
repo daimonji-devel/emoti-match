@@ -59,7 +59,7 @@ async function onCreateRoom(socket, data) {
       let room = await rooms.createNewRoom();
       let player = new Player(socket, userName);
       room.addPlayer(player);
-      logger.verbose(`${player} created room ${room.id()}`);
+      logger.info(`${player} created room ${room.id()}`);
       socket.emit('roomCreated', room.publicInfo());
     }
     catch (error) {
@@ -121,7 +121,7 @@ async function onDestructRoom(socket, data) {
   }
   else {
     destructRoom(room);
-    logger.verbose(`${player} destructed room ${room.id()}`);
+    logger.info(`${player} destructed room ${room.id()}`);
   }
 }
 
