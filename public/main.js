@@ -344,7 +344,16 @@ async function onGameFinished() {
   renderPage();
 }
 
-var socket = io();
+function splitPath() {
+  let path = document.location.pathname;
+  let splitIndex = path.lastIndexOf('/') + 1;
+  return [ path.slice(0, splitIndex), path.slice(splitIndex) ];
+}
+
+const pathPrefix = splitPath()[0];
+console.log(pathPrefix);
+
+var socket = io({path: pathPrefix + 'socket.io'});
 socket.on('roomCreated', onRoomCreated);
 socket.on('createRoomError', onCreateRoomError);
 socket.on('roomEntered', onRoomEntered);

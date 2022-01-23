@@ -355,6 +355,7 @@ const maxRooms = configurationValue(config, ['room', 'maxRooms']) || 9;
 const maxPlayers = configurationValue(config, ['room', 'maxPlayers']) || 9;
 const port = configurationValue(config, ['url', 'port']) || 3000;
 const host = configurationValue(config, ['url', 'host']) || 'localhost';
+const pathPrefix = configurationValue(config, ['url', 'pathPrefix']) || '/';
 
 const rooms = new RoomHandler(maxRooms, maxPlayers);
 
@@ -362,11 +363,14 @@ const app = express();
 app.use(morgan(':remote-addr :method :url :status :response-time ms', {
   stream: { write: message => logger.http(message.trim()) }
 }));
-app.use(express.static(publicPath));
-app.use('/room/[0-9a-f]+', (req, res, next) => res.sendFile(indexFile));
+
+const router = express.Router();
+router.use(express.static(publicPath));
+router.use('/room_[0-9a-f]+$', (req, res, next) => res.sendFile(indexFile));
+app.use(pathPrefix, router);
 
 const httpServer = http.createServer(app);
-const socketIoServer = new socketIo.Server(httpServer);
+const socketIoServer = new socketIo.Server(httpServer, {path: pathPrefix + 'socket.io/'});
 
 socketIoServer.on('connection', onConnection);
 
