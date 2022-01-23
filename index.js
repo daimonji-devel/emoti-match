@@ -2,6 +2,7 @@ import express from 'express';
 import * as socketIo from 'socket.io';
 import fs from 'fs';
 import http from 'http';
+import morgan from 'morgan';
 import path from 'path';
 import url from 'url';
 import winston from 'winston';
@@ -358,6 +359,9 @@ const host = configurationValue(config, ['url', 'host']) || 'localhost';
 const rooms = new RoomHandler(maxRooms, maxPlayers);
 
 const app = express();
+app.use(morgan(':remote-addr :method :url :status :response-time ms', {
+  stream: { write: message => logger.http(message.trim()) }
+}));
 app.use(express.static(publicPath));
 
 const httpServer = http.createServer(app);
