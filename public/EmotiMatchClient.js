@@ -210,7 +210,6 @@ class EmotiMatchClient {
     symbolElement.innerText = symbol;
     symbolElement.addEventListener('click', event => {
       this.#sendSolution(symbolElement.innerText);
-      console.log('check solution ' + symbolElement.innerText);
     });
     return symbolElement;
   }
