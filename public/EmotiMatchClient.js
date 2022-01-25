@@ -354,7 +354,18 @@ class EmotiMatchClient {
       this.#deleteCardSymbols(cardInfo);
       cardInfo.scoreElement.nodeValue = scores[pid];
     }
-    this.#renderMessage(`round finished`);
+    let winnerId = gameInfo['roundInfo']['winnerId'];
+    if (typeof(winnerId) == 'number') {
+      if (winnerId == this.#egoPid) {
+        this.#renderMessage(`You win round`)
+      }
+      else {
+        this.#renderMessage(`${players[winnerId]['name']} wins round`)
+      }
+    }
+    else {
+      this.#renderMessage('round finishes without winner')
+    }
   }
 
   async onGameFinished(roomInfo, gameInfo) {
