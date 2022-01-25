@@ -16,6 +16,9 @@ class EmotiMatchClient {
   #notMineSize = 0.9; // ratio of ego player card to other player's cards
   #symbolSize = 0.8;  // size of symbols where 1 is the maximum without overlaps
 
+  #positiveComments = [ 'great!', 'awesome!', 'correct!' ];
+  #negativeComments = [ 'wrong!', 'you can do better!', 'try again!', 'what the hack!' ];
+
   constructor(parentElement, renderMessage, sendSolution, gameFinished) {
     this.#parentElement = parentElement;
     this.#renderMessage = renderMessage;
@@ -321,8 +324,22 @@ class EmotiMatchClient {
     }
   }
 
+  /**
+   * randomly selects an element from an array.
+   * @param {Array<T>} array a non-empty array.
+   * @returns {T} a random element of array.
+   */
+  randomArrayElement(array) {
+    let id = Math.floor(Math.random() * array.length);
+    return array[id];
+  }
+
   async onSolutionChecked(result) {
-    console.log('solution checked ' + JSON.stringify(result));
+    if ('solutionCorrect' in result) {
+      let array = result['solutionCorrect'] ? this.#positiveComments : this.#negativeComments;
+      let comment = this.randomArrayElement(array);
+      this.#renderMessage(comment);
+    }
   }
 
   async onCheckSolutionError(result) {
