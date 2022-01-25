@@ -148,7 +148,9 @@ class EmotiMatchServer {
   }
 
   #onPlayerFoundSolution(playerId) {
-    this.#round['roundInfo']['scores'][playerId] += 1;
+    let roundInfo = this.#round['roundInfo'];
+    roundInfo['scores'][playerId] += 1;
+    roundInfo['winnerId'] = playerId;
     this.#round['playerFinished']();
   }
 
