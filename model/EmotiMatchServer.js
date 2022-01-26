@@ -20,9 +20,10 @@ class EmotiMatchServer {
   #isFinished = false;
   #options = {
     rounds: 5,
-    roundPrepareDelay: 2000, // delay before preparation of round
-    roundStartDelay: 3000,   // delay before start of round
-    roundMaxTime: 10000,     // maximum waiting time after start
+    roundPrepareDelay: 2000,  // delay before preparation of round
+    roundStartDelay: 3000,    // delay before start of round
+    roundMaxTime: 10000,      // maximum waiting time after start
+    penaltyTime: 2000,        // penalty time on wrong answer
     gameFinishDelay: 10000,   // delay before end of game
     cardSize: 3,
     winCardSizeAdd: 1,
@@ -80,15 +81,19 @@ class EmotiMatchServer {
   }
 
   messageFromPlayer(playerId, data, callback) {
-    //console.log(`message from player ${playerId}: ${JSON.stringify(data)}`);
+    let time = Date.now();
     if ('solution' in data) {
       if (this.#round && (this.#round['roundInfo']['status'] == 'started')) {
-        if (data['solution'] == this.#round['solution']) {
+        if (this.#round['penaltyEnds'][playerId] > time) {
+          callback({solution: 'rejected', reason: 'penalty'})
+        }
+        else if (data['solution'] == this.#round['solution']) {
           this.#onPlayerFoundSolution(playerId);
-          callback({solutionCorrect: true});
+          callback({solution: 'correct'});
         }
         else {
-          callback({solutionCorrect: false});
+          this.#round['penaltyEnds'][playerId] = time + this.#options['penaltyTime'];
+          callback({solution: 'incorrect', action: 'penalty'});
         }
       }
       // ignore if solution proposal arrives outside a started round
@@ -112,6 +117,7 @@ class EmotiMatchServer {
       roundInfo: roundInfo,
       solution: solution,
       cards: cards,
+      penaltyEnds: Array(this.#players).fill(0),
     }
 
     for (let playerInfo of this.#playerInfos) {

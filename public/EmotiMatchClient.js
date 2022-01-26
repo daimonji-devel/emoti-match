@@ -16,8 +16,8 @@ class EmotiMatchClient {
   #notMineSize = 0.9; // ratio of ego player card to other player's cards
   #symbolSize = 0.8;  // size of symbols where 1 is the maximum without overlaps
 
-  #positiveComments = [ 'great!', 'awesome!', 'correct!' ];
-  #negativeComments = [ 'wrong!', 'you can do better!', 'try again!', 'what the hack!' ];
+  #positiveComments = [ 'great!', 'awesome!', 'correct!', 'success!' ];
+  #negativeComments = [ 'wrong!', 'you can do better!', 'try again!', 'what the hack!', 'fail!' ];
 
   constructor(parentElement, renderMessage, sendSolution, gameFinished) {
     this.#parentElement = parentElement;
@@ -334,11 +334,27 @@ class EmotiMatchClient {
   }
 
   async onSolutionChecked(result) {
-    if ('solutionCorrect' in result) {
-      let array = result['solutionCorrect'] ? this.#positiveComments : this.#negativeComments;
-      let comment = this.randomArrayElement(array);
-      this.#renderMessage(comment);
+    let messageBlocks = [];
+    switch (result['solution']) {
+      case 'correct':
+        messageBlocks.push(this.randomArrayElement(this.#positiveComments));
+        break;
+      case 'incorrect':
+        messageBlocks.push(this.randomArrayElement(this.#negativeComments));
+        if (result['action'] == 'penalty') {
+          messageBlocks.push('you got awarded penalty time!');
+        }
+        break;
+      case 'rejected':
+        messageBlocks.push('solution not accepted!');
+        if (result['reason'] == 'penalty') {
+          messageBlocks.push('still in penalty time!');
+        }
+        break;
+      default:
+        return;
     }
+    this.#renderMessage(messageBlocks.join(' '));
   }
 
   async onCheckSolutionError(result) {
