@@ -33,13 +33,21 @@ div.card {
 }
 
 div.symbol {
-  background: #ff9933;
+  background: #ffcc99;
   position: absolute;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 3;
+}
+
+div.symbol:hover {
+  background: #ff9933;
+}
+
+div.symbol:active {
+  background: #cc6600;
 }
 
 footer {
