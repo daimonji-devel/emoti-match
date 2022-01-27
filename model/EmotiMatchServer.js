@@ -127,18 +127,56 @@ class EmotiMatchServer {
     return this.#playerInfos;
   }
 
+  /**
+   * determines the sizes of the player cards, i.e. the number of symbols on the cards.
+   * @returns {Array<Number>} array of player card sizes.
+   */
+  #determineCardSizes() {
+    let cardSizes = Array(this.#players);
+    for (let pid = 0; pid < this.#players; pid++) {
+      cardSizes[pid] = Math.round(
+        this.#options['cardSize'] + this.#scores[pid] * this.#options['winCardSizeAdd']
+      );
+    }
+    return cardSizes;
+  }
+
   #generateCards() {
     let selector = new RandomArrayElementSelector(this.#emotis);
     let solution = selector.selectOne();
-    let cards = [];
-    for (let pid = 0; pid < this.#players; pid++) {
-      let cardSize = Math.round(
-        this.#options['cardSize'] + this.#scores[pid] * this.#options['winCardSizeAdd']
-      );
-      let card = [solution, ...selector.selectArray(cardSize - 1)];
-      cards.push((new RandomArrayElementSelector(card)).selectArray(cardSize));
+    let cardSizes = this.#determineCardSizes();
+    let cards = cardSizes.map(cardSize => Array(cardSize));
+
+    // create cards and fill minCardSize
+    let minCardSize = Math.min(...cardSizes);
+    let symbols = selector.selectArray(this.#players);
+    let sharedEnd = Math.min(minCardSize, this.#players);
+    for (let [ pid, card ] of cards.entries()) {
+      card[0] = solution;
+      for (let sid = 1; sid < sharedEnd; sid++) {
+        card[sid] = symbols[(sid + pid) % this.#players];
+      }
+      for (let sid = sharedEnd; sid < minCardSize; sid++) {
+        card[sid] = selector.selectOne();
+      }
     }
-    return [ solution, cards ];
+
+    // fill the other card sizes
+    let maxCardSize = Math.max(...cardSizes);
+    for (let sid = minCardSize; sid < maxCardSize; sid++) {
+      let symbol = selector.selectOne();
+      for (let card of cards) {
+        if (sid < card.length) {
+          card[sid] = symbol;
+        }
+      }
+    }
+
+    // scramble the cards
+    let scrambledCards = cards.map(
+      card => (new RandomArrayElementSelector(card)).selectArray(card.length)
+    );
+    return [ solution, scrambledCards ];
   }
 
   #startRound() {
