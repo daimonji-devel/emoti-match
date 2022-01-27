@@ -366,7 +366,6 @@ socket.on('playerLeft', onPlayerLeft);
 socket.on('leaveRoomError', onLeaveRoomError);
 socket.on('gameStarted', onGameStarted);
 socket.on('startGameError', onStartGameError);
-socket.on('gameFinished', onGameFinished);
 socket.on('unspecificError', onUnspecificError);
 
 socket.on('roundPrepared', (...args) => {
