@@ -364,6 +364,7 @@ class EmotiMatchClient {
   async onRoundFinished(roomInfo, gameInfo) {
     let players = roomInfo['players'];
     let scores = gameInfo['scores'];
+    let solution = gameInfo['roundInfo']['solution'];
     for (let pid = 0; pid < players.length; pid++) {
       let cardInfo = this.#cardInfos[pid];
       this.#deleteCardSymbols(cardInfo);
@@ -372,14 +373,14 @@ class EmotiMatchClient {
     let winnerId = gameInfo['roundInfo']['winnerId'];
     if (typeof(winnerId) == 'number') {
       if (winnerId == this.#egoPid) {
-        this.#renderMessage(`You win round`)
+        this.#renderMessage(`You win round with ${solution}`)
       }
       else {
-        this.#renderMessage(`${players[winnerId]['name']} wins round`)
+        this.#renderMessage(`${players[winnerId]['name']} wins round with ${solution}`)
       }
     }
     else {
-      this.#renderMessage('round finishes without winner')
+      this.#renderMessage(`round finishes without winner for ${solution}`);
     }
   }
 
