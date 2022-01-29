@@ -11,13 +11,14 @@ async function renderIndex() {
     return renderUserInput();
   }
   if (myData['roomInfo']) {
-    return renderRoom();
+    return [ renderRoom() ];
   }
   let roomInputPromise = renderRoomInput();
   let roomCreatePromise = renderRoomCreate();
   let paragraph = document.createElement('p');
   paragraph.innerText = `Hello ${name} ✌️😂`;
-  return [paragraph, ...(await roomInputPromise), ...(await roomCreatePromise)];
+  let [ roomInput, focusElement ] = await roomInputPromise;
+  return [ [paragraph, ...roomInput, ...(await roomCreatePromise)], focusElement ];
 }
 
 async function renderUserInput() {
@@ -42,7 +43,7 @@ async function renderUserInput() {
   form.appendChild(document.createElement('br'));
   form.appendChild(input);
   form.appendChild(button);
-  return [ form ];
+  return [ [ form ], input ];
 }
 
 async function renderRoomInput() {
@@ -73,7 +74,7 @@ async function renderRoomInput() {
   paragraph.appendChild(text);
   paragraph.appendChild(document.createElement('br'));
   paragraph.appendChild(form);
-  return [ paragraph ];
+  return [ [ paragraph ], input ];
 }
 
 async function renderRoomCreate() {
@@ -202,8 +203,11 @@ async function renderContent(content) {
 }
 
 async function renderPage() {
-  let content = await renderIndex();
-  renderContent(content);
+  let [ content, focusElement ] = await renderIndex();
+  await renderContent(content);
+  if (focusElement) {
+    focusElement.focus()
+  }
 }
 
 /* ****************************************************************************
