@@ -11,7 +11,7 @@ async function renderIndex() {
     return renderUserInput();
   }
   if (myData['roomInfo']) {
-    return [ renderRoom() ];
+    return [ await renderRoom() ];
   }
   let roomInputPromise = renderRoomInput();
   let roomCreatePromise = renderRoomCreate();
