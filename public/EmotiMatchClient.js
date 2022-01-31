@@ -13,6 +13,8 @@ class EmotiMatchClient {
   #resizeObserver;
   #cardInfos;
   #egoPid;
+  #boardElement;
+  #rankElements;
   #notMineSize = 0.9; // ratio of ego player card to other player's cards
   #symbolSize = 0.8;  // size of symbols where 1 is the maximum without overlaps
 
@@ -30,6 +32,8 @@ class EmotiMatchClient {
 
     this.#cardInfos = null;
     this.#egoPid = null;
+    this.#boardElement = null;
+    this.#rankElements = null;
   }
 
   #renderContent(content) {
@@ -297,6 +301,76 @@ class EmotiMatchClient {
     return cardInfos;
   }
 
+  /**
+   * determines the ranks of the players comparing their scores. if players have the same score,
+   * their rank will be the same but the next ranks will be skipped accordingly.
+   * @param {Array<Number>} scores the scores of each player.
+   * @returns {Array} the ranks of each player, as an array of arrays [ rank, player id, score ].
+   */
+  #determineRanks(scores) {
+    // create a map of scores with the players having the score.
+    let scoreMap = {};
+    for (let [ pid, score ] of scores.entries()) {
+      if (!(score in scoreMap)) {
+        scoreMap[score] = [];
+      }
+      scoreMap[score].push(pid);
+    }
+    // sort the unique scores and determine the ranks
+    let rank = 1;
+    let ranks = [];
+    let scorePids = Object.entries(scoreMap).sort((sp1, sp2) => sp2[0] - sp1[0]);
+    for (let [ score, pids ] of scorePids) {
+      for (let pid of pids) {
+        ranks.push([ rank, pid, score ]);
+      }
+      rank += pids.length;
+    }
+    return ranks;
+  }
+
+  async #updateRankingBoard(roomInfo, gameInfo) {
+    let players = roomInfo['players'];
+    let scores = gameInfo['scores'];
+    let ranks = this.#determineRanks(scores);
+    let end = Math.min(ranks.length, this.#rankElements.length, players.length);
+    for (let i = 0; i < end; i++) {
+      let rank = ranks[i];
+      let pid = rank[1];
+      let rankCells = this.#rankElements[i];
+      rankCells[0].innerText = rank[0];
+      rankCells[1].innerText = players[pid]['name'];
+      rankCells[2].innerText = rank[2];
+    }
+  }
+
+  async #prepareRankingBoard(roomInfo, gameInfo) {
+    let headingTexts = [ 'Rank', 'Player', 'Score' ];
+    let table = document.createElement('table');
+    let headingRow = document.createElement('tr');
+    for (let headingText of headingTexts) {
+      let headingCell = document.createElement('th');
+      headingCell.innerText = headingText;
+      headingRow.appendChild(headingCell);
+    }
+    table.appendChild(headingRow);
+
+    this.#rankElements = [];
+    let players = roomInfo['players'];
+    for (let pid = 0; pid < players.length; pid++) {
+      let rankCells = headingTexts.map(() => document.createElement('td'));
+      this.#rankElements.push(rankCells);
+      let rankRow = document.createElement('tr');
+      rankRow.replaceChildren(...rankCells);
+      table.appendChild(rankRow);
+    }
+
+    this.#boardElement = document.createElement('div');
+    this.#boardElement.setAttribute('class', 'rankingBoard');
+    this.#boardElement.appendChild(table);
+    return [ this.#boardElement ];
+  }
+
   async onResize(entries) {
     this.#resizeDeck();
   }
@@ -305,11 +379,14 @@ class EmotiMatchClient {
     this.#egoPid = gameInfo['playerId'];
     this.#cardInfos = await this.#prepareDeckInfo(roomInfo, gameInfo);
     this.#resizeDeck(true);
-    let content = this.#cardInfos.map(cardInfo => cardInfo['cardElement']);
-    this.#renderContent(content);
+    let cardElements = this.#cardInfos.map(cardInfo => cardInfo['cardElement']);
+    let rankingBoard = await this.#prepareRankingBoard(roomInfo, gameInfo);
+    await this.#updateRankingBoard(roomInfo, gameInfo);
+    this.#renderContent([ ...cardElements, ...rankingBoard]);
   }
 
   async onRoundPrepared(roomInfo, gameInfo) {
+    this.#boardElement.setAttribute('class', 'rankingBoard');
     let cardInfo = this.#cardInfos[this.#egoPid];
     let symbols = gameInfo['card'];
     this.#renewCardSymbols(cardInfo, symbols);
@@ -362,6 +439,8 @@ class EmotiMatchClient {
   }
 
   async onRoundFinished(roomInfo, gameInfo) {
+    this.#updateRankingBoard(roomInfo, gameInfo);
+    this.#boardElement.setAttribute('class', 'rankingBoardActive');
     let players = roomInfo['players'];
     let scores = gameInfo['scores'];
     let solution = gameInfo['roundInfo']['solution'];
