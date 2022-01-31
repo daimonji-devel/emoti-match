@@ -50,6 +50,27 @@ div.symbol:active {
   background: #cc6600;
 }
 
+div.rankingBoard, div.rankingBoardActive {
+  background: #ccccff;
+  position: absolute;
+  padding: 5% 10%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+div.rankingBoard {
+  opacity: 0;
+  z-index: 1;
+  transition: opacity 1s ease-in-out;
+}
+
+div.rankingBoardActive {
+  opacity: 1;
+  z-index: 4;
+  transition: opacity 1s ease-in-out, z-index 0s, 1s;
+}
+
 footer {
   box-sizing: border-box;
   width: 100%;
