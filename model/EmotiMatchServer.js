@@ -16,6 +16,7 @@ class EmotiMatchServer {
   #roundId = 1;
   #round;
   #scores;
+  #cardSizes;
   #playerInfos;
   #isFinished = false;
   #options = {
@@ -35,8 +36,9 @@ class EmotiMatchServer {
    * constructor.
    * @param {Number} players number of players in the room.
    * @param {Object} options options for this server overriding the default options.
+   * @param {Array<Number>} scores optional scores of the players in the room.
    */
-  constructor(players, options) {
+  constructor(players, options, scores) {
     this.#players = players;
     if (options) {
       Object.assign(this.#options, options);
@@ -44,10 +46,10 @@ class EmotiMatchServer {
     this.#emotis = this.#generateEmotis();
     this.#roundId = 1;
     this.#round = null;
-    this.#scores = [];
+    this.#scores = scores ? scores : Array(players).fill(0);
+    this.#cardSizes = Array(players).fill(this.#options['cardSize']);
     this.#playerInfos = [];
     for (let pid = 0; pid < players; pid++) {
-      this.#scores.push(0);
       this.#playerInfos.push({
         playerId: pid,
         scores: this.#scores,
@@ -132,24 +134,10 @@ class EmotiMatchServer {
     return this.#playerInfos;
   }
 
-  /**
-   * determines the sizes of the player cards, i.e. the number of symbols on the cards.
-   * @returns {Array<Number>} array of player card sizes.
-   */
-  #determineCardSizes() {
-    let cardSizes = Array(this.#players);
-    for (let pid = 0; pid < this.#players; pid++) {
-      cardSizes[pid] = Math.round(
-        this.#options['cardSize'] + this.#scores[pid] * this.#options['winCardSizeAdd']
-      );
-    }
-    return cardSizes;
-  }
-
   #generateCards() {
     let selector = new RandomArrayElementSelector(this.#emotis);
     let solution = selector.selectOne();
-    let cardSizes = this.#determineCardSizes();
+    let cardSizes = this.#cardSizes;
     let cards = cardSizes.map(cardSize => Array(cardSize));
 
     // create cards and fill minCardSize
@@ -210,6 +198,7 @@ class EmotiMatchServer {
     let roundScores = roundInfo['scores'];
     for (let pid = 0; pid < this.#players; pid++) {
       this.#scores[pid] += roundScores[pid];
+      this.#cardSizes[pid] += roundScores[pid] * this.#options['winCardSizeAdd'];
     }
     return this.#playerInfos;
   }
