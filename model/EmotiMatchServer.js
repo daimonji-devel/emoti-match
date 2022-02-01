@@ -39,7 +39,7 @@ class EmotiMatchServer {
   constructor(players, options) {
     this.#players = players;
     if (options) {
-      this.#options.assign(options);
+      Object.assign(this.#options, options);
     }
     this.#emotis = this.#generateEmotis();
     this.#roundId = 1;
