@@ -62,13 +62,13 @@ div.rankingBoard, div.rankingBoardActive {
 div.rankingBoard {
   opacity: 0;
   z-index: 1;
-  transition: opacity 1s ease-in-out;
+  transition: opacity 1s ease-in-out, z-index 0s 1s;
 }
 
 div.rankingBoardActive {
   opacity: 1;
   z-index: 4;
-  transition: opacity 1s ease-in-out, z-index 0s, 1s;
+  transition: opacity 1s ease-in-out, z-index 0s 0s;
 }
 
 footer {
