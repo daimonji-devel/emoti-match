@@ -31,6 +31,11 @@ class EmotiMatchServer {
     codePointRanges: [{start: 0x1F600, end: 0x1F637}],
   };
 
+  /**
+   * constructor.
+   * @param {Number} players number of players in the room.
+   * @param {Object} options options for this server overriding the default options.
+   */
   constructor(players, options) {
     this.#players = players;
     if (options) {
