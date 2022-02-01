@@ -171,7 +171,8 @@ async function onStartGame(socket, data) {
     processError(socket, 'startGameError', 'permissionError');
   }
   else {
-    let game = new EmotiMatchServer(room.size());
+    let options = {};
+    let game = new EmotiMatchServer(room.size(), options, room.scores());
     room.setGame(game);
     game.start(
       (gameInfos) => sendGameStatus(room, 'gameStarted', gameInfos),
