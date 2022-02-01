@@ -5,7 +5,9 @@ class Room {
   #id;
   #maxSize;
   #players;
+  #scores;
   #game;
+  #gameCount;
 
   /**
    * constructor.
@@ -16,7 +18,9 @@ class Room {
     this.#id = id;
     this.#maxSize = maxSize;
     this.#players = [];
+    this.#scores = [];
     this.#game = null;
+    this.#gameCount = 0;
   }
 
   /**
@@ -48,9 +52,10 @@ class Room {
     if (playerId < 0) {
       // new player is added at end
       this.#players.push(player);
+      this.#scores.push(0);
     }
     else {
-      // existing player is replaced
+      // existing player is replaced - score is kept
       this.#players.splice(playerId, 1, player);
     }
     return true;
@@ -67,6 +72,7 @@ class Room {
       return false;
     }
     this.#players.splice(i, 1);
+    this.#scores.splice(i, 1);
     return true;
   }
 
@@ -75,6 +81,14 @@ class Room {
    */
   playerIterator() {
     return this.#players.values();
+  }
+
+  /**
+   * @returns {Array<Number>} the array of player scores. this is not a copy. all changes done to
+   * this array will be reflected.
+   */
+  scores() {
+    return this.#scores;
   }
 
   /**
@@ -103,7 +117,7 @@ class Room {
    */
   publicInfo() {
     let players = this.#players.map(player => player.publicInfo());
-    return {id: this.#id, players: players};
+    return {id: this.#id, players: players, scores: this.#scores, gameCount: this.#gameCount};
   }
 
   /**
@@ -114,6 +128,9 @@ class Room {
   setGame(game) {
     if (this.isGameFinished()) {
       this.#game = game;
+      if (game) {
+        this.#gameCount++;
+      }
       return true;
     }
     return false;
