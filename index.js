@@ -231,6 +231,10 @@ async function onConnection(socket) {
   socket.on('checkSolution', (data) => onCheckSolution(socket, data));
 }
 
+function onUncaughtException(err) {
+  logger.error(`uncaught ${err.name}: ${err.message}`);
+}
+
 /* ****************************************************************************
  * logging
  */
@@ -359,6 +363,8 @@ const host = configurationValue(config, ['url', 'host']) || 'localhost';
 const pathPrefix = configurationValue(config, ['url', 'pathPrefix']) || '/';
 
 const rooms = new RoomHandler(maxRooms, maxPlayers);
+
+process.on('uncaughtException', onUncaughtException);
 
 const app = express();
 app.use(morgan(':remote-addr :method :url :status :response-time ms', {
